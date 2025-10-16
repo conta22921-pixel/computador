@@ -1,50 +1,54 @@
 name: Build Flet Android APK
 
+# Dispara o workflow em todo push para o branch 'main' e manualmente.
 on:
-  # Dispara o workflow sempre que houver um push (envio de código) para a branch 'main'
   push:
-    branches: [ main ]
-  # Permite disparar o workflow manualmente pela aba "Actions"
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
   build_android:
-    # A máquina virtual que será usada, recomendada para builds Android
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11' # Ou a versão do Python que você usa
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11' # Use uma versão de Python que você está usando (3.9+)
 
-    - name: Install Flet
-      run: pip install flet
+      - name: ⚙️ Install Flet and Dependencies
+        run: |
+          pip install flet
+          # Instala uv para melhor gerenciamento de dependências e build
+          pip install uv
+          # Instala as dependências do pyproject.toml usando uv
+          uv sync
 
-    # Este passo instala o Flutter e o Android SDK - ESSENCIAL
-    - name: Setup Flutter and Android SDK
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: '3.19.0' # Versão estável. O Flet usa o Flutter
+      - name: 🚀 Setup Flutter Environment (Fixes Dart Language Error)
+        # Força uma versão moderna do Flutter que suporta Dart 3.x (o que resolve o erro)
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0' # Escolha uma versão estável recente (3.22.0 ou superior)
+          channel: 'stable'
+          
+      - name: 📦 Run Flet Build APK
+        # O Flet usará o pyproject.toml para encontrar o ponto de entrada.
+        # Se você moveu seu código para 'src/main.py' e configurou o pyproject.toml 
+        # com 'path = "src"', este comando simples é o suficiente.
+        run: flet build apk --verbose
+        
+      - name: 📤 Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: newapp-android-apk
+          # Procura pelo arquivo .apk gerado pelo Flet/Flutter
+          path: build/app/outputs/flutter-apk/app-release.apk
 
-    - name: Get Dependencies (se você usa requirements.txt)
-      # Se o seu app depende de outras bibliotecas, instale-as aqui
-      run: |
-        if [ -f requirements.txt ]; then
-          pip install -r requirements.txt
-        fi
-
-    - name: Run Flet Build APK
-      run: flet build apk --verbose
-
-    - name: Upload APK Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        # Caminho onde o Flet salva o APK gerado
-        path: build/app/outputs/flutter/apk/app-release.apk
-        name: Seu_App_Android_APK
-        # Opcional: define o tempo de retenção (em dias)
-        retention-days: 7
+      - name: 🏷️ Release to GitHub (Opcional, se o push for para um tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/app/outputs/flutter-apk/app-release.apk
