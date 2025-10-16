@@ -1,4 +1,4 @@
-name: Build & Publish Release APK
+name: Build Flet Android APK
 
 on:
   push:
@@ -6,21 +6,38 @@ on:
   workflow_dispatch:
 
 jobs:
-  Gradle:
+  build_android:
     runs-on: ubuntu-latest
+
     steps:
-    - name: checkout code
-      uses: actions/checkout@v2
-    - name: setup jdk
-      uses: actions/setup-java@v1
-      with:
-        java-version: 11
-    - name: Make Gradle executable
-      run: chmod +x ./gradlew
-    - name: Build Release APK
-      run: ./gradlew assembleRelease
-    - name: Releasing using Hub
-      uses: sangatdesai/release-apk@main
-      env:
-       GITHUB_TOKEN: ${{ secrets.TOKEN }}
-       APP_FOLDER: app
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🚀 Setup Flutter Environment (Fixes Dart Language Error)
+        # Use a versão 3.22.0 ou 3.22.2, que são conhecidas por usar Dart 3+
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.2'
+          channel: 'stable'
+          # Adiciona o Flutter ao PATH para garantir que o Flet o utilize
+          cache: true
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11' 
+
+      - name: ⚙️ Install Flet and Dependencies
+        run: |
+          pip install flet uv
+          uv sync
+
+      - name: 📦 Run Flet Build APK
+        # O Flet agora usará o Flutter 3.22.2 configurado, com o Dart 3.x necessário.
+        run: flet build apk --verbose
+        
+      - name: 📤 Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: newapp-android-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
