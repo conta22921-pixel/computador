@@ -1,0 +1,50 @@
+name: Build Flet Android APK
+
+on:
+  # Dispara o workflow sempre que houver um push (envio de código) para a branch 'main'
+  push:
+    branches: [ main ]
+  # Permite disparar o workflow manualmente pela aba "Actions"
+  workflow_dispatch:
+
+jobs:
+  build_android:
+    # A máquina virtual que será usada, recomendada para builds Android
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11' # Ou a versão do Python que você usa
+
+    - name: Install Flet
+      run: pip install flet
+
+    # Este passo instala o Flutter e o Android SDK - ESSENCIAL
+    - name: Setup Flutter and Android SDK
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.19.0' # Versão estável. O Flet usa o Flutter
+
+    - name: Get Dependencies (se você usa requirements.txt)
+      # Se o seu app depende de outras bibliotecas, instale-as aqui
+      run: |
+        if [ -f requirements.txt ]; then
+          pip install -r requirements.txt
+        fi
+
+    - name: Run Flet Build APK
+      run: flet build apk --verbose
+
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        # Caminho onde o Flet salva o APK gerado
+        path: build/app/outputs/flutter/apk/app-release.apk
+        name: Seu_App_Android_APK
+        # Opcional: define o tempo de retenção (em dias)
+        retention-days: 7
