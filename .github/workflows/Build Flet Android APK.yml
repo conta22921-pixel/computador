@@ -1,6 +1,5 @@
 name: Build Flet Android APK
 
-# Dispara o workflow em todo push para o branch 'main' e manualmente.
 on:
   push:
     branches: [ "main" ]
@@ -14,41 +13,31 @@ jobs:
       - name: ⬇️ Checkout code
         uses: actions/checkout@v4
 
+      - name: 🚀 Setup Flutter Environment (Fixes Dart Language Error)
+        # Use a versão 3.22.0 ou 3.22.2, que são conhecidas por usar Dart 3+
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.2'
+          channel: 'stable'
+          # Adiciona o Flutter ao PATH para garantir que o Flet o utilize
+          cache: true
+
       - name: 🐍 Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11' # Use uma versão de Python que você está usando (3.9+)
+          python-version: '3.11' 
 
       - name: ⚙️ Install Flet and Dependencies
         run: |
-          pip install flet
-          # Instala uv para melhor gerenciamento de dependências e build
-          pip install uv
-          # Instala as dependências do pyproject.toml usando uv
+          pip install flet uv
           uv sync
 
-      - name: 🚀 Setup Flutter Environment (Fixes Dart Language Error)
-        # Força uma versão moderna do Flutter que suporta Dart 3.x (o que resolve o erro)
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.22.0' # Escolha uma versão estável recente (3.22.0 ou superior)
-          channel: 'stable'
-          
       - name: 📦 Run Flet Build APK
-        # O Flet usará o pyproject.toml para encontrar o ponto de entrada.
-        # Se você moveu seu código para 'src/main.py' e configurou o pyproject.toml 
-        # com 'path = "src"', este comando simples é o suficiente.
+        # O Flet agora usará o Flutter 3.22.2 configurado, com o Dart 3.x necessário.
         run: flet build apk --verbose
         
       - name: 📤 Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: newapp-android-apk
-          # Procura pelo arquivo .apk gerado pelo Flet/Flutter
           path: build/app/outputs/flutter-apk/app-release.apk
-
-      - name: 🏷️ Release to GitHub (Opcional, se o push for para um tag)
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: build/app/outputs/flutter-apk/app-release.apk
