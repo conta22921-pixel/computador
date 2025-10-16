@@ -1,4 +1,4 @@
-name: Build Flet Android APK
+name: Build Flet Android APK - FINAL ATTEMPT
 
 # Dispara o workflow em todo push para o branch 'main' e manualmente.
 on:
@@ -14,9 +14,8 @@ jobs:
       - name: ⬇️ Checkout code
         uses: actions/checkout@v4
 
-      # (Esta etapa agora é Opcional, mas a mantemos para segurança, caso o Flet precise do PATH)
-      - name: 🚀 Setup Flutter Environment (Modern Version)
-        # Fixa em uma versão estável e moderna (3.22.x ou superior)
+      - name: 🚀 Setup Flutter Environment (Modern Version 3.22.2)
+        # Isso garante que a versão correta do Dart/Flutter esteja no PATH
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.22.2'
@@ -26,31 +25,21 @@ jobs:
       - name: 🐍 Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11' # Mantenha a versão de Python que você usa
+          python-version: '3.11'
 
-      - name: ⚙️ Install Flet (Latest) and Dependencies
+      - name: ⚙️ Install Flet (0.28.3) and Dependencies
         run: |
-          # 💡 FORÇA a instalação da versão mais recente do Flet (>0.30.0)
-          # A versão mais recente do flet-cli corrigiu o problema do Flutter/Dart.
-          pip install "flet>=0.30.0" uv
-          
-          # Se você tem um pyproject.toml configurado, sincronize as dependências:
+          # 💡 Instala a versão mais recente ESTÁVEL (que o log mostrou ser 0.28.3)
+          pip install "flet==0.28.3" uv
           uv sync
 
-      - name: 📦 Run Flet Build APK
-        # O Flet mais novo deve agora gerenciar corretamente as versões de Dart/Flutter 
-        # e usar a versão compatível para o build.
-        run: flet build apk --verbose
+      - name: 📦 Run Flet Build APK (Forced Clean)
+        # Usamos o comando "limpo" do Flet, mas adicionamos --force-build 
+        # para tentar evitar que ele baixe e use o Flutter antigo internamente.
+        run: flet build apk --verbose --force-build
         
       - name: 📤 Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: newapp-android-apk
-          # Caminho padrão que o Flet usa
           path: build/app/outputs/flutter-apk/app-release.apk
-
-      - name: 🏷️ Release to GitHub (Opcional, se o push for para um tag)
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: build/app/outputs/flutter-apk/app-release.apk
