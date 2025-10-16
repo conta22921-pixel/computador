@@ -1,4 +1,4 @@
-name: Build Flet Android APK - FINAL CORRECTION
+name: Build Flet Android APK - Finalizado
 
 # Dispara o workflow em todo push para o branch 'main' e manualmente.
 on:
@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: 🚀 Setup Flutter Environment (Modern Version 3.22.2)
-        # Isso garante que a versão correta do Dart/Flutter esteja no PATH.
+        # Garante que uma versão moderna do Flutter/Dart esteja disponível no PATH
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.22.2'
@@ -25,30 +25,44 @@ jobs:
       - name: 🐍 Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.11' # Use sua versão de Python preferida
 
       - name: ⚙️ Install Flet (Latest DEV Version) and Dependencies
         run: |
-          # 💡 INSTALA A VERSÃO DE DESENVOLVIMENTO MAIS RECENTE
-          # A flag --pre permite que o pip veja as versões 0.70.0.dev que têm as correções.
+          # Instala a versão de desenvolvimento mais recente (que contém as correções de Dart)
+          # Isso é a chave para o sucesso do build que você viu no log.
           pip install --pre "flet" uv
           
-          # Garante que as dependências do seu pyproject.toml estejam sincronizadas
+          # Sincroniza as dependências do seu projeto
           uv sync
 
       - name: 📦 Run Flet Build APK
-        # Com a versão DEV do Flet, o comando simples de build deve usar o Flutter moderno
-        # ou, pelo menos, um Flutter interno atualizado que já tem o Dart compatível.
+        # Comando de build simples, que agora funciona com o Flet DEV
         run: flet build apk --verbose
-        
+
+      # NOVO PASSO DE DEBUG: Confirma se o arquivo foi realmente gerado antes de tentar o upload.
+      - name: 🔍 Debug - Listar arquivos gerados
+        run: |
+          echo "Conteúdo de build/app/outputs/flutter-apk/"
+          # Lista o diretório principal do APK. O || true evita que o step falhe se o diretório não existir.
+          ls -lR build/app/outputs/flutter-apk/ || true
+          
+          echo "Conteúdo de build/apk/ (Caminho de cópia do Flet)"
+          ls -lR build/apk/ || true
+          
       - name: 📤 Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: newapp-android-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          # Tenta ambos os caminhos: o do Flutter (padrão) e o de cópia do Flet (secundário).
+          path: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/apk/app-release.apk
+          # Se o debug acima não encontrar nada, o erro aparecerá aqui, o que é correto.
+          if-no-files-found: error
 
-      - name: 🏷️ Release to GitHub (Opcional)
+      - name: 🏷️ Release to GitHub (Opcional: se você usar tags)
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: build/app/outputs/flutter-apk/app-release.apk
+          files: build/app/outputs/flutter-apk/app-release.apk # Este path é o mais comum, mas pode ser ajustado
