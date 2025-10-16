@@ -30,7 +30,6 @@ jobs:
       - name: ⚙️ Install Flet (Latest DEV Version) and Dependencies
         run: |
           # Instala a versão de desenvolvimento mais recente (que contém as correções de Dart)
-          # Isso é a chave para o sucesso do build que você viu no log.
           pip install --pre "flet" uv
           
           # Sincroniza as dependências do seu projeto
@@ -40,11 +39,11 @@ jobs:
         # Comando de build simples, que agora funciona com o Flet DEV
         run: flet build apk --verbose
 
-      # NOVO PASSO DE DEBUG: Confirma se o arquivo foi realmente gerado antes de tentar o upload.
+      # DEBUG: Lista os diretórios para confirmar que o arquivo foi gerado no local esperado.
       - name: 🔍 Debug - Listar arquivos gerados
         run: |
           echo "Conteúdo de build/app/outputs/flutter-apk/"
-          # Lista o diretório principal do APK. O || true evita que o step falhe se o diretório não existir.
+          # O ls -lR lista recursivamente. O || true evita a falha se o dir estiver vazio.
           ls -lR build/app/outputs/flutter-apk/ || true
           
           echo "Conteúdo de build/apk/ (Caminho de cópia do Flet)"
@@ -58,11 +57,12 @@ jobs:
           path: |
             build/app/outputs/flutter-apk/app-release.apk
             build/apk/app-release.apk
-          # Se o debug acima não encontrar nada, o erro aparecerá aqui, o que é correto.
+          # Garante que o workflow falhe se o arquivo não for encontrado (após a correção)
           if-no-files-found: error
 
-      - name: 🏷️ Release to GitHub (Opcional: se você usar tags)
+      - name: 🏷️ Release to GitHub
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: build/app/outputs/flutter-apk/app-release.apk # Este path é o mais comum, mas pode ser ajustado
+          # Usa o caminho de build/app/outputs/flutter-apk, que é o padrão oficial do Flutter
+          files: build/app/outputs/flutter-apk/app-release.apk
