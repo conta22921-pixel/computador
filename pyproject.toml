@@ -8,8 +8,8 @@ authors = [
     { name = "Flet developer", email = "you@example.com" }
 ]
 dependencies = [
-  "flet==0.28.3"
-  "requests==2.32.4"
+  "flet==0.28.3",
+  "requests==2.32.4",
   
 ]
 
@@ -40,4 +40,5 @@ dev-dependencies = [
 package-mode = false
 
 [tool.poetry.group.dev.dependencies]
+
 flet = {extras = ["all"], version = "0.28.3"}
