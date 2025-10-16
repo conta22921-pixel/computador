@@ -32,12 +32,21 @@ jobs:
           pip install flet uv
           uv sync
 
+      # ... (outras etapas) ...
+
       - name: 📦 Run Flet Build APK
-        # O Flet agora usará o Flutter 3.22.2 configurado, com o Dart 3.x necessário.
-        run: flet build apk --verbose
+        id: flet_build
+        run: |
+          # 1. Cria um projeto temporário do Flutter (bootstrap) manualmente, usando o Flutter moderno (3.22.2)
+          flet create --template bootstrap --project-name bootstrap_app --output build
+
+          # 2. Executa o build do Flet, forçando-o a usar o projeto Bootstrap recém-criado, 
+          #    e ignorando o download interno do Flet CLI.
+          flet build apk --verbose --flutter-project-path build/bootstrap_app
         
       - name: 📤 Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: newapp-android-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          # O caminho muda porque o build está sendo feito dentro do projeto Bootstrap
+          path: build/bootstrap_app/build/app/outputs/flutter-apk/app-release.apk
