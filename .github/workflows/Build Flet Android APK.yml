@@ -1,5 +1,6 @@
 name: Build Flet Android APK
 
+# Dispara o workflow em todo push para o branch 'main' e manualmente.
 on:
   push:
     branches: [ "main" ]
@@ -13,40 +14,43 @@ jobs:
       - name: ⬇️ Checkout code
         uses: actions/checkout@v4
 
-      - name: 🚀 Setup Flutter Environment (Fixes Dart Language Error)
-        # Use a versão 3.22.0 ou 3.22.2, que são conhecidas por usar Dart 3+
+      # (Esta etapa agora é Opcional, mas a mantemos para segurança, caso o Flet precise do PATH)
+      - name: 🚀 Setup Flutter Environment (Modern Version)
+        # Fixa em uma versão estável e moderna (3.22.x ou superior)
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.22.2'
           channel: 'stable'
-          # Adiciona o Flutter ao PATH para garantir que o Flet o utilize
           cache: true
-
+          
       - name: 🐍 Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11' 
+          python-version: '3.11' # Mantenha a versão de Python que você usa
 
-      - name: ⚙️ Install Flet and Dependencies
+      - name: ⚙️ Install Flet (Latest) and Dependencies
         run: |
-          pip install flet uv
+          # 💡 FORÇA a instalação da versão mais recente do Flet (>0.30.0)
+          # A versão mais recente do flet-cli corrigiu o problema do Flutter/Dart.
+          pip install "flet>=0.30.0" uv
+          
+          # Se você tem um pyproject.toml configurado, sincronize as dependências:
           uv sync
 
-      # ... (outras etapas) ...
-
       - name: 📦 Run Flet Build APK
-        id: flet_build
-        run: |
-          # 1. Cria um projeto temporário do Flutter (bootstrap) manualmente, usando o Flutter moderno (3.22.2)
-          flet create --template bootstrap --project-name bootstrap_app --output build
-
-          # 2. Executa o build do Flet, forçando-o a usar o projeto Bootstrap recém-criado, 
-          #    e ignorando o download interno do Flet CLI.
-          flet build apk --verbose --flutter-project-path build/bootstrap_app
+        # O Flet mais novo deve agora gerenciar corretamente as versões de Dart/Flutter 
+        # e usar a versão compatível para o build.
+        run: flet build apk --verbose
         
       - name: 📤 Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: newapp-android-apk
-          # O caminho muda porque o build está sendo feito dentro do projeto Bootstrap
-          path: build/bootstrap_app/build/app/outputs/flutter-apk/app-release.apk
+          # Caminho padrão que o Flet usa
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: 🏷️ Release to GitHub (Opcional, se o push for para um tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/app/outputs/flutter-apk/app-release.apk
