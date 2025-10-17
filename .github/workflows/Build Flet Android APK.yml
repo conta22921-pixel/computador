@@ -36,20 +36,24 @@ jobs:
           uv sync
 
       - name: 📦 Run Flet Build APK
-        # Este comando gera o APK
+        # Comando que gera o APK no diretório build/app/outputs/flutter-apk/
         run: flet build apk --verbose
 
-      # 1. UPLOAD DO ARTIFACT
+      # 1. UPLOAD DO ARTIFACT (COM DUPLA VERIFICAÇÃO DE CAMINHO)
       - name: 📤 Upload APK Artifact
         id: upload_artifact
         uses: actions/upload-artifact@v4
         with:
           name: newapp-android-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          # CRÍTICO: Tenta os dois caminhos possíveis para garantir que o arquivo seja encontrado
+          path: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/apk/app-release.apk
           if-no-files-found: error
           
-      # 2. CRIAÇÃO E ENVIO DO LINK DO ARTIFACT PARA O TELEGRAM
+      # 2. ENVIO DO LINK DO ARTIFACT PARA O TELEGRAM
       - name: 🚀 Enviar Link do Artifact para Telegram
+        # Este passo só executa se o passo anterior (Upload) foi bem-sucedido
         if: success()
         uses: appleboy/telegram-action@master
         with:
@@ -58,9 +62,6 @@ jobs:
           parse_mode: markdown
           
           # CRIAÇÃO DO LINK DO ARTIFACT
-          # Formato: https://github.com/REPOSITORIO/actions/runs/RUN_ID/artifacts/ARTIFACT_ID
-          # **ATENÇÃO:** O ARTIFACT_ID NÃO É FACILMENTE ACESSÍVEL AQUI. 
-          # VAMOS USAR O LINK DA PÁGINA DE DOWNLOAD DO RUN:
           message: |
             ✅ *Novo Build Flet Android Disponível (Artifact)!*
             
