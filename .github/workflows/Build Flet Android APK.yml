@@ -1,59 +1,25 @@
-name: Build Flet Android APK - Artifact Link
+name: Build Flet Android APK - Artifact Download Link
 
-# Dispara o workflow em todo push para o branch 'main' e manualmente.
-on:
-  push:
-    branches: [ "main" ]
-  workflow_dispatch:
+# ... (on: push: branches: ["main"] e workflow_dispatch)
 
 jobs:
   build_android:
-    runs-on: ubuntu-latest
+    # ... (steps de Checkout, Setup Flutter, Setup Python, Install Flet, Flet Build APK)
 
-    # Exporta o Run ID para ser usado na criação do link do Artifact
-    outputs:
-      run_id: ${{ github.run_id }}
-
-    steps:
-      - name: ⬇️ Checkout code
-        uses: actions/checkout@v4
-
-      - name: 🚀 Setup Flutter Environment (Modern Version)
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.22.2'
-          channel: 'stable'
-          cache: true
-          
-      - name: 🐍 Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: ⚙️ Install Flet and Dependencies
-        run: |
-          pip install --pre "flet" uv
-          uv sync
-
-      - name: 📦 Run Flet Build APK
-        # Comando que gera o APK no diretório build/app/outputs/flutter-apk/
-        run: flet build apk --verbose
-
-      # 1. UPLOAD DO ARTIFACT (COM DUPLA VERIFICAÇÃO DE CAMINHO)
+      # 1. UPLOAD DO ARTIFACT
       - name: 📤 Upload APK Artifact
         id: upload_artifact
         uses: actions/upload-artifact@v4
         with:
           name: newapp-android-apk
-          # CRÍTICO: Tenta os dois caminhos possíveis para garantir que o arquivo seja encontrado
+          # CRÍTICO: Tenta os dois caminhos possíveis
           path: |
             build/app/outputs/flutter-apk/app-release.apk
             build/apk/app-release.apk
           if-no-files-found: error
           
-      # 2. ENVIO DO LINK DO ARTIFACT PARA O TELEGRAM
-      - name: 🚀 Enviar Link do Artifact para Telegram
-        # Este passo só executa se o passo anterior (Upload) foi bem-sucedido
+      # 2. ENVIO DO LINK DE DOWNLOAD DO ZIP PARA O TELEGRAM
+      - name: 🚀 Enviar Link de Download para Telegram
         if: success()
         uses: appleboy/telegram-action@master
         with:
@@ -61,15 +27,14 @@ jobs:
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           parse_mode: markdown
           
-          # CRIAÇÃO DO LINK DO ARTIFACT
+          # CRIAÇÃO DO LINK DE DOWNLOAD DIRETO DO ZIP DO ARTIFACT
           message: |
-            ✅ *Novo Build Flet Android Disponível (Artifact)!*
+            ✅ *Novo Build Flet Android Disponível!*
             
-            ⚠️ *ATENÇÃO: Este link exige login no GitHub e expira.*
+            ⚠️ *ATENÇÃO: Este link baixa o ZIP do Artifact, exige login e expira.*
             
             Branch: `${{ github.ref_name }}`
-            Commit: `${{ github.sha }}`
             
-            📥 [BAIXAR ARTIFACT (Exige Login)](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/newapp-android-apk)
+            📥 [CLIQUE AQUI PARA BAIXAR O ZIP](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)
             
-            [Ver no GitHub Actions](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            [Ver na Página do GitHub Actions](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
