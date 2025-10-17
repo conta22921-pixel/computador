@@ -1,16 +1,80 @@
-name: Build Flet Android APK - Artifact Download Link
+name: Build Flet Android APK - Artifact Page Link
 
-# --- SEÇÃO CRÍTICA (CORRIGIDA) ---
+# --- Correção de Sintaxe: on: ---
 on:
-  # Dispara o workflow em todo push para a branch 'main'
+  # Dispara em todo push para a branch 'main'
   push:
     branches:
       - main
       
-  # Permite o disparo manual (sem argumentos)
+  # Permite o disparo manual no painel Actions
   workflow_dispatch: 
   
-# --- FIM DA SEÇÃO CRÍTICA ---
-
 jobs:
-# ... (restante do seu código) ...
+  build_android:
+    # --- Correção de Sintaxe: runs-on (Linha 15) ---
+    runs-on: ubuntu-latest
+
+    # Exporta o Run ID
+    outputs:
+      run_id: ${{ github.run_id }}
+
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🚀 Setup Flutter Environment (Modern Version)
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.2'
+          channel: 'stable'
+          cache: true
+          
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: ⚙️ Install Flet and Dependencies
+        run: |
+          pip install --pre "flet" uv
+          uv sync
+
+      - name: 📦 Run Flet Build APK
+        # Comando que gera o APK
+        run: flet build apk --verbose
+
+      # 1. UPLOAD DO ARTIFACT (COM DUPLA VERIFICAÇÃO DE CAMINHO)
+      - name: 📤 Upload APK Artifact
+        id: upload_artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: newapp-android-apk
+          # Tenta os dois caminhos (Flutter e Flet) para resolver o erro "No files found"
+          path: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/apk/app-release.apk
+          if-no-files-found: error
+          
+      # 2. ENVIO DO LINK ESTÁVEL PARA O TELEGRAM
+      - name: 🚀 Enviar Link de Download para Telegram
+        # Este passo só executa se o passo anterior (Upload) foi bem-sucedido
+        if: success()
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          # CORREÇÃO: Usa 'format: markdown' para resolver o WARNING
+          format: markdown 
+          
+          # CRIAÇÃO DO LINK ESTÁVEL: Leva o usuário para a página do Run (onde está o botão de Download)
+          message: |
+            ✅ *Novo Build Flet Android Disponível!*
+            
+            ⚠️ *ATENÇÃO: Requer login no GitHub para baixar.*
+            
+            Branch: `${{ github.ref_name }}`
+            
+            📥 [CLIQUE AQUI PARA VER E BAIXAR](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            
+            [Ver na Página do GitHub Actions](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
