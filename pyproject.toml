@@ -1,9 +1,32 @@
+[project]
+# Ajuste o nome do seu projeto, versão e descrição se necessário
+name = "meu_app_flet" 
+version = "1.0.0"
+description = "Um aplicativo Flet construído no GitHub Actions"
+authors = [
+    {name = "Seu Nome", email = "seu@email.com"}
+]
+dependencies = [
+    "flet",
+    # ADICIONE AQUI QUAISQUER OUTRAS DEPENDÊNCIAS DO SEU PROJETO PYTHON
+    # Exemplo: "requests", "pandas", etc.
+]
+
+[tool.flet]
+# Configurações gerais do Flet
+app.module = "main"  # Garante que o ponto de entrada é main.py (se o seu for diferente, mude)
+
 [tool.flet.android]
-# Desativa o Impeller, forçando o uso do engine de renderização antigo.
-# Isso costuma resolver o problema de tela preta/branca em builds de release.
+# **CRÍTICO PARA RESOLVER TELA PRETA/BRANCA EM ALGUNS DISPOSITIVOS**
+# Desativa o Impeller (novo engine de renderização do Flutter)
 enable_impeller = false
 
-# Também garanta que você está especificando o nome do seu aplicativo (se não o fez)
-[tool.flet.app]
-# Se o seu arquivo principal for 'main.py', mantenha 'main'.
-module = "main" 
+# Garante a permissão de Internet (essencial para qualquer app)
+permissions = ["INTERNET"]
+
+# **CRÍTICO: DESATIVA MINIFICAÇÃO E OBFUSCAÇÃO DO CÓDIGO**
+# Prevê que o build de release remova classes/funções necessárias do Python/Flutter.
+extra_args = [
+    "--no-shrink",
+    "--no-obfuscate"
+]
