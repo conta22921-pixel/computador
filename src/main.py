@@ -12,10 +12,10 @@ def main(page: ft.Page):
     global usuario
     global senha
     global btn
-    usuario = ft.TextField(bgcolor=ft.Colors.PURPLE_800, label="Usuario", width=240, border_radius=15)
-    senha = ft.TextField(bgcolor=ft.Colors.PURPLE_800, label="Senha", width=240, border_radius=15)
+    usuario = ft.TextField(bgcolor=ft.Colors.PURPLE_800, label="Usuario", width=240, border_radius=15, border_width=4)
+    senha = ft.TextField(bgcolor=ft.Colors.PURPLE_800, label="Senha", width=240, border_radius=15, border_width=4)
     
-
+    
 
     def btn_clicado(e):
 
@@ -31,21 +31,24 @@ def main(page: ft.Page):
     tela_login = ft.Column([usuario, senha, btn], horizontal_alignment="center", width=320, height=270)
     
     conteiner = ft.Stack(
+        #width=720,
+
         controls=[
-            ft.Image(src="img.jpg", width=320, height=580, fit=ft.ImageFit.COVER),
+            ft.Image(src="fundo.jpg", width=1080, height=2340, fit=ft.ImageFit.COVER),
             ft.Container(
-                width= 350,
-                height= 450,
                 content=ft.Column(
                     controls=[
                         tela_login
-                    ]
+                    ],
+                    height=150,
+                    width=250,
+                    alignment=ft.MainAxisAlignment.CENTER
+                    
                 )
             )
         ],
         height=400,
-        alignment=ft.alignment.center,
-        expand= True
+        alignment=ft.alignment.center
     )
     
     page.add(
