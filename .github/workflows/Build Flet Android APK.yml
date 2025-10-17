@@ -15,6 +15,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: 🚀 Setup Flutter Environment (Modern Version 3.22.2)
+        # Garante que uma versão moderna do Flutter/Dart esteja disponível no PATH
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.22.2'
@@ -24,40 +25,42 @@ jobs:
       - name: 🐍 Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.11' # Use sua versão de Python preferida
 
       - name: ⚙️ Install Flet (Latest DEV Version) and Dependencies
         run: |
+          # Instala a versão de desenvolvimento mais recente (com correções de Dart)
           pip install --pre "flet" uv
+          
+          # Sincroniza as dependências do seu projeto
           uv sync
 
       - name: 📦 Run Flet Build APK
+        # Comando de build simples, que agora funciona com o Flet DEV
         run: flet build apk --verbose
 
       # DEBUG: Lista os diretórios para confirmar que o arquivo foi gerado no local esperado.
       - name: 🔍 Debug - Listar arquivos gerados
         run: |
           echo "Conteúdo de build/app/outputs/flutter-apk/"
+          # O ls -lR lista recursivamente. O || true evita a falha se o dir estiver vazio.
           ls -lR build/app/outputs/flutter-apk/ || true
           
           echo "Conteúdo de build/apk/ (Caminho de cópia do Flet)"
           ls -lR build/apk/ || true
           
-      # ----------------------------------------------
-      # NOVO PASSO: ENVIAR PARA TELEGRAM
-      # ----------------------------------------------
+      # 🚀 NOVO PASSO: ENVIAR PARA TELEGRAM (Action Corrigida)
       - name: 🚀 Enviar APK para Telegram
         # Condição: só executa se o passo anterior (build) foi bem-sucedido
         if: success()
-        uses: dev-ad/telegram-upload-action@v1.0.0
+        uses: appleboy/telegram-action@master
         with:
           # Segredos do Telegram configurados no GitHub
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          chat_id: ${{ secrets.TELEGRAM_CHAT_ID }}
-          # Caminho do APK gerado
-          file: build/app/outputs/flutter-apk/app-release.apk
-          # Mensagem opcional
-          caption: |
+          
+          # Mensagem opcional (caption)
+          message: |
             ✅ Build Android Flet Concluído!
             
             Branch: ${{ github.ref_name }}
@@ -65,20 +68,23 @@ jobs:
             
             [Ver no GitHub Actions](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
-      # ----------------------------------------------
-      # OS PASSOS ABAIXO CONTINUAM FUNCIONANDO COMO ANTES
-      # ----------------------------------------------
+          # Caminho do APK gerado
+          document: build/app/outputs/flutter-apk/app-release.apk
+
       - name: 📤 Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: newapp-android-apk
+          # Tenta ambos os caminhos: o do Flutter (padrão) e o de cópia do Flet (secundário).
           path: |
             build/app/outputs/flutter-apk/app-release.apk
             build/apk/app-release.apk
+          # Garante que o workflow falhe se o arquivo não for encontrado (após a correção)
           if-no-files-found: error
 
       - name: 🏷️ Release to GitHub
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
+          # Usa o caminho de build/app/outputs/flutter-apk, que é o padrão oficial do Flutter
           files: build/app/outputs/flutter-apk/app-release.apk
