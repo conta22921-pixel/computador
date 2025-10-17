@@ -1,90 +1,106 @@
 name: Build Flet Android APK - Finalizado
 
-# Dispara o workflow em todo push para o branch 'main' e manualmente.
+# O workflow é disparado em todo push para o 'main' (para builds de teste)
+# E em todo push de tag que começa com 'v' (para releases oficiais)
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch:
+    tags: 
+      - 'v*.*.*' # Ex: v1.0.0, v2.5.1
+  workflow_dispatch: # Permite rodar manualmente
 
 jobs:
-  build_android:
+  # ----------------------------------------------------
+  # JOB 1: CRIAÇÃO DO APK (ID: build_apk)
+  # Este Job compila o projeto e salva o APK como um Artifact
+  # ----------------------------------------------------
+  build_apk:
     runs-on: ubuntu-latest
-
+    outputs:
+      apk_path: ${{ steps.set_path.outputs.path }} # Exporta o caminho principal do APK
+      
     steps:
       - name: ⬇️ Checkout code
         uses: actions/checkout@v4
 
-      - name: 🚀 Setup Flutter Environment (Modern Version 3.22.2)
-        # Garante que uma versão moderna do Flutter/Dart esteja disponível no PATH
+      - name: 🚀 Setup Flutter Environment
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.2'
+          flutter-version: '3.22.2' # Versão estável moderna
           channel: 'stable'
           cache: true
           
       - name: 🐍 Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11' # Use sua versão de Python preferida
+          python-version: '3.11'
 
-      - name: ⚙️ Install Flet (Latest DEV Version) and Dependencies
+      - name: ⚙️ Install Flet and Dependencies
         run: |
-          # Instala a versão de desenvolvimento mais recente (com correções de Dart)
           pip install --pre "flet" uv
-          
-          # Sincroniza as dependências do seu projeto
           uv sync
 
       - name: 📦 Run Flet Build APK
-        # Comando de build simples, que agora funciona com o Flet DEV
         run: flet build apk --verbose
 
-      # DEBUG: Lista os diretórios para confirmar que o arquivo foi gerado no local esperado.
-      - name: 🔍 Debug - Listar arquivos gerados
-        run: |
-          echo "Conteúdo de build/app/outputs/flutter-apk/"
-          # O ls -lR lista recursivamente. O || true evita a falha se o dir estiver vazio.
-          ls -lR build/app/outputs/flutter-apk/ || true
-          
-          echo "Conteúdo de build/apk/ (Caminho de cópia do Flet)"
-          ls -lR build/apk/ || true
-          
-      # 🚀 NOVO PASSO: ENVIAR PARA TELEGRAM (Action Corrigida)
-      - name: 🚀 Enviar APK para Telegram
-        # Condição: só executa se o passo anterior (build) foi bem-sucedido
-        if: success()
-        uses: appleboy/telegram-action@master
-        with:
-          # Segredos do Telegram configurados no GitHub
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          
-          # Mensagem opcional (caption)
-          message: |
-            ✅ Build Android Flet Concluído!
-            
-            Branch: ${{ github.ref_name }}
-            Commit: ${{ github.sha }}
-            
-            [Ver no GitHub Actions](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+      # Define a variável de saída para o caminho principal do APK
+      - name: 📝 Set APK Path Output
+        id: set_path
+        run: echo "path=build/app/outputs/flutter-apk/app-release.apk" >> $GITHUB_OUTPUT
 
-          # Caminho do APK gerado
-          document: build/app/outputs/flutter-apk/app-release.apk
-
+      # CRUCIAL: Este passo salva o APK como um Artifact, para ser usado pelo próximo Job
       - name: 📤 Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: newapp-android-apk
-          # Tenta ambos os caminhos: o do Flutter (padrão) e o de cópia do Flet (secundário).
-          path: |
-            build/app/outputs/flutter-apk/app-release.apk
-            build/apk/app-release.apk
-          # Garante que o workflow falhe se o arquivo não for encontrado (após a correção)
+          path: ${{ steps.set_path.outputs.path }}
           if-no-files-found: error
+  
+  # ----------------------------------------------------
+  # JOB 2: ENVIAR RELEASE E TELEGRAM (ID: release_notify)
+  # Este Job só roda em releases (tags)
+  # ----------------------------------------------------
+  release_notify:
+    needs: build_apk # Depende que o build_apk tenha sido bem-sucedido
+    runs-on: ubuntu-latest
+    # CRÍTICO: Só executa se for uma tag (vX.Y.Z) ou for disparado manualmente.
+    if: success() && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch')
+    
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
 
-      - name: 🏷️ Release to GitHub
-        if: startsWith(github.ref, 'refs/tags/')
+      # 1. Baixa o APK (Artifact) do Job anterior
+      - name: 📥 Download APK Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: newapp-android-apk
+          path: . # Baixa o APK no diretório raiz
+
+      # 2. CRIA O RELEASE NO GITHUB E FAZ O UPLOAD DO ARQUIVO GRANDE
+      - name: 🏷️ Create GitHub Release and Upload APK
+        id: create_release
         uses: softprops/action-gh-release@v2
         with:
-          # Usa o caminho de build/app/outputs/flutter-apk, que é o padrão oficial do Flutter
-          files: build/app/outputs/flutter-apk/app-release.apk
+          # O APK foi baixado no diretório raiz na etapa anterior com o nome 'app-release.apk'
+          files: app-release.apk 
+          draft: false
+          prerelease: false
+          name: Release ${{ github.ref_name }} # Nome da Release (e.g., v1.0.0)
+          
+      # 3. ENVIA O LINK DA RELEASE PÚBLICA PARA O TELEGRAM
+      - name: 🚀 Enviar Link para Telegram
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          parse_mode: markdown
+          
+          message: |
+            ✅ *Nova Release Flet Android Disponível!*
+            
+            Versão: `${{ github.ref_name }}`
+            
+            📥 [CLIQUE AQUI PARA BAIXAR O APK](${{ steps.create_release.outputs.upload_url }}/app-release.apk)
+            
+            [Ver no GitHub Actions](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
