@@ -1,39 +1,56 @@
 import flet as ft
-import requests as rq
-import json
-from time import sleep
 
-def main(pagina: ft.Page):
-    pagina.vertical_alignment = ft.MainAxisAlignment.CENTER
-    pagina.theme_mode = 'dark'
+def main(page: ft.Page):
+    page.title = "Flet counter example"
+    page.vertical_alignment = ft.MainAxisAlignment.CENTER
+    page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
+    #page.bgcolor = ft.Colors.BLACK
+    page.theme_mode = ft.ThemeMode.DARK
 
-    computador = ft.Icon(name=ft.Icons.FAVORITE, color=ft.Colors.PINK)
     
+
+    global usuario
+    global senha
+    global btn
+    usuario = ft.TextField(bgcolor=ft.Colors.PURPLE_800, label="Usuario", width=240, border_radius=15)
+    senha = ft.TextField(bgcolor=ft.Colors.PURPLE_800, label="Senha", width=240, border_radius=15)
     
-    def config_brn_desligar(e):
-        conputador_ = 'https://computadores-aa482-default-rtdb.firebaseio.com/computador/.json'
-        data = {'btn': 1}
-        rq.patch(url=conputador_ ,data=json.dumps(data))
+
+
+    def btn_clicado(e):
+
+        user = "willy"
+        password = "1234"
+
+        if usuario.value == user and senha.value == password:
+           btn.text="oiii"
+           page.update()
+    
         
+    btn = ft.ElevatedButton("Entrar", on_click=btn_clicado)
+    tela_login = ft.Column([usuario, senha, btn], horizontal_alignment="center", width=320, height=270)
     
-    btn_desligar = ft.ElevatedButton('Desligar', width=150, on_click=config_brn_desligar)
-    
-    base = ft.Container(
-        content=(ft.Column([ft.Row([ft.Text('computador', size=25), computador], alignment='center'), ft.Row([btn_desligar],alignment='center')]))
-
-        
+    conteiner = ft.Stack(
+        controls=[
+            ft.Image(src="img.jpg", width=320, height=580, fit=ft.ImageFit.COVER),
+            ft.Container(
+                width= 350,
+                height= 450,
+                content=ft.Column(
+                    controls=[
+                        tela_login
+                    ]
+                )
+            )
+        ],
+        height=400,
+        alignment=ft.alignment.center,
+        expand= True
     )
     
+    page.add(
+        conteiner
+    )
 
-    while True:
-        sleep(1)
-        conputador_ligado = 'https://computadores-aa482-default-rtdb.firebaseio.com/computador/ligado/.json'
-        rr = rq.get(conputador_ligado)
-        if rr.text == '1':
-            computador.color = '#00FF00'
-            pagina.update()
-        elif rr.text == '0':
-            computador.color = "#FF0000"
-            pagina.update()
-        pagina.add(base)
-ft.app(target=main)
+ft.app(main)
+
