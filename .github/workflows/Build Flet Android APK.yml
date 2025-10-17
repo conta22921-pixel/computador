@@ -1,18 +1,53 @@
 name: Build Flet Android APK - Artifact Download Link
 
-# ... (on: push: branches: ["main"] e workflow_dispatch)
+# Dispara o workflow:
+on:
+  push:
+    # Correção da linha 10: Usa a sintaxe de lista de branches para evitar o erro de sintaxe.
+    branches: 
+      - main
+  workflow_dispatch: # Permite rodar manualmente
 
 jobs:
   build_android:
-    # ... (steps de Checkout, Setup Flutter, Setup Python, Install Flet, Flet Build APK)
+    runs-on: ubuntu-latest
 
-      # 1. UPLOAD DO ARTIFACT
+    # Exporta o Run ID
+    outputs:
+      run_id: ${{ github.run_id }}
+
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🚀 Setup Flutter Environment (Modern Version)
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.2'
+          channel: 'stable'
+          cache: true
+          
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: ⚙️ Install Flet and Dependencies
+        run: |
+          pip install --pre "flet" uv
+          uv sync
+
+      - name: 📦 Run Flet Build APK
+        # Comando que gera o APK
+        run: flet build apk --verbose
+
+      # 1. UPLOAD DO ARTIFACT (COM DUPLA VERIFICAÇÃO DE CAMINHO)
       - name: 📤 Upload APK Artifact
         id: upload_artifact
         uses: actions/upload-artifact@v4
         with:
           name: newapp-android-apk
-          # CRÍTICO: Tenta os dois caminhos possíveis
+          # Tenta os dois caminhos possíveis (Flutter e Flet) para garantir que o arquivo seja encontrado
           path: |
             build/app/outputs/flutter-apk/app-release.apk
             build/apk/app-release.apk
@@ -20,6 +55,7 @@ jobs:
           
       # 2. ENVIO DO LINK DE DOWNLOAD DO ZIP PARA O TELEGRAM
       - name: 🚀 Enviar Link de Download para Telegram
+        # Este passo só executa se o passo anterior (Upload) foi bem-sucedido
         if: success()
         uses: appleboy/telegram-action@master
         with:
@@ -28,10 +64,11 @@ jobs:
           parse_mode: markdown
           
           # CRIAÇÃO DO LINK DE DOWNLOAD DIRETO DO ZIP DO ARTIFACT
+          # Este link baixa um arquivo ZIP que contém o APK.
           message: |
             ✅ *Novo Build Flet Android Disponível!*
             
-            ⚠️ *ATENÇÃO: Este link baixa o ZIP do Artifact, exige login e expira.*
+            ⚠️ *ATENÇÃO: Este link baixa o ZIP do Artifact, exige login no GitHub e expira.*
             
             Branch: `${{ github.ref_name }}`
             
