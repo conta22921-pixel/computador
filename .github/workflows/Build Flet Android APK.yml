@@ -1,32 +1,27 @@
-name: Build Flet Android APK - Finalizado
+name: Build Flet Android APK - Artifact Link
 
-# O workflow é disparado em todo push para o 'main' (para builds de teste)
-# E em todo push de tag que começa com 'v' (para releases oficiais)
+# Dispara o workflow em todo push para o branch 'main' e manualmente.
 on:
   push:
     branches: [ "main" ]
-    tags: 
-      - 'v*.*.*' # Ex: v1.0.0, v2.5.1
-  workflow_dispatch: # Permite rodar manualmente
+  workflow_dispatch:
 
 jobs:
-  # ----------------------------------------------------
-  # JOB 1: CRIAÇÃO DO APK (ID: build_apk)
-  # Este Job compila o projeto e salva o APK como um Artifact
-  # ----------------------------------------------------
-  build_apk:
+  build_android:
     runs-on: ubuntu-latest
+
+    # Exporta o Run ID para ser usado na criação do link do Artifact
     outputs:
-      apk_path: ${{ steps.set_path.outputs.path }} # Exporta o caminho principal do APK
-      
+      run_id: ${{ github.run_id }}
+
     steps:
       - name: ⬇️ Checkout code
         uses: actions/checkout@v4
 
-      - name: 🚀 Setup Flutter Environment
+      - name: 🚀 Setup Flutter Environment (Modern Version)
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.2' # Versão estável moderna
+          flutter-version: '3.22.2'
           channel: 'stable'
           cache: true
           
@@ -41,66 +36,39 @@ jobs:
           uv sync
 
       - name: 📦 Run Flet Build APK
+        # Este comando gera o APK
         run: flet build apk --verbose
 
-      # Define a variável de saída para o caminho principal do APK
-      - name: 📝 Set APK Path Output
-        id: set_path
-        run: echo "path=build/app/outputs/flutter-apk/app-release.apk" >> $GITHUB_OUTPUT
-
-      # CRUCIAL: Este passo salva o APK como um Artifact, para ser usado pelo próximo Job
+      # 1. UPLOAD DO ARTIFACT
       - name: 📤 Upload APK Artifact
+        id: upload_artifact
         uses: actions/upload-artifact@v4
         with:
           name: newapp-android-apk
-          path: ${{ steps.set_path.outputs.path }}
+          path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
-  
-  # ----------------------------------------------------
-  # JOB 2: ENVIAR RELEASE E TELEGRAM (ID: release_notify)
-  # Este Job só roda em releases (tags)
-  # ----------------------------------------------------
-  release_notify:
-    needs: build_apk # Depende que o build_apk tenha sido bem-sucedido
-    runs-on: ubuntu-latest
-    # CRÍTICO: Só executa se for uma tag (vX.Y.Z) ou for disparado manualmente.
-    if: success() && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch')
-    
-    steps:
-      - name: ⬇️ Checkout code
-        uses: actions/checkout@v4
-
-      # 1. Baixa o APK (Artifact) do Job anterior
-      - name: 📥 Download APK Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: newapp-android-apk
-          path: . # Baixa o APK no diretório raiz
-
-      # 2. CRIA O RELEASE NO GITHUB E FAZ O UPLOAD DO ARQUIVO GRANDE
-      - name: 🏷️ Create GitHub Release and Upload APK
-        id: create_release
-        uses: softprops/action-gh-release@v2
-        with:
-          # O APK foi baixado no diretório raiz na etapa anterior com o nome 'app-release.apk'
-          files: app-release.apk 
-          draft: false
-          prerelease: false
-          name: Release ${{ github.ref_name }} # Nome da Release (e.g., v1.0.0)
           
-      # 3. ENVIA O LINK DA RELEASE PÚBLICA PARA O TELEGRAM
-      - name: 🚀 Enviar Link para Telegram
+      # 2. CRIAÇÃO E ENVIO DO LINK DO ARTIFACT PARA O TELEGRAM
+      - name: 🚀 Enviar Link do Artifact para Telegram
+        if: success()
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           parse_mode: markdown
           
+          # CRIAÇÃO DO LINK DO ARTIFACT
+          # Formato: https://github.com/REPOSITORIO/actions/runs/RUN_ID/artifacts/ARTIFACT_ID
+          # **ATENÇÃO:** O ARTIFACT_ID NÃO É FACILMENTE ACESSÍVEL AQUI. 
+          # VAMOS USAR O LINK DA PÁGINA DE DOWNLOAD DO RUN:
           message: |
-            ✅ *Nova Release Flet Android Disponível!*
+            ✅ *Novo Build Flet Android Disponível (Artifact)!*
             
-            Versão: `${{ github.ref_name }}`
+            ⚠️ *ATENÇÃO: Este link exige login no GitHub e expira.*
             
-            📥 [CLIQUE AQUI PARA BAIXAR O APK](${{ steps.create_release.outputs.upload_url }}/app-release.apk)
+            Branch: `${{ github.ref_name }}`
+            Commit: `${{ github.sha }}`
+            
+            📥 [BAIXAR ARTIFACT (Exige Login)](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/newapp-android-apk)
             
             [Ver no GitHub Actions](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
