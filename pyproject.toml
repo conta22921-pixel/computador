@@ -1,32 +1,35 @@
-[project]
-# Ajuste o nome do seu projeto, versão e descrição se necessário
-name = "meu_app_flet" 
-version = "1.0.0"
-description = "Um aplicativo Flet construído no GitHub Actions"
-authors = [
-    {name = "Seu Nome", email = "seu@email.com"}
-]
-dependencies = [
-    "flet",
-    # ADICIONE AQUI QUAISQUER OUTRAS DEPENDÊNCIAS DO SEU PROJETO PYTHON
-    # Exemplo: "requests", "pandas", etc.
-]
+name: Build APK
 
-[tool.flet]
-# Configurações gerais do Flet
-app.module = "main"  # Garante que o ponto de entrada é main.py (se o seu for diferente, mude)
+on:
+  push:
+    branches:
+      - main
 
-[tool.flet.android]
-# **CRÍTICO PARA RESOLVER TELA PRETA/BRANCA EM ALGUNS DISPOSITIVOS**
-# Desativa o Impeller (novo engine de renderização do Flutter)
-enable_impeller = false
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-# Garante a permissão de Internet (essencial para qualquer app)
-permissions = ["INTERNET"]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-# **CRÍTICO: DESATIVA MINIFICAÇÃO E OBFUSCAÇÃO DO CÓDIGO**
-# Prevê que o build de release remova classes/funções necessárias do Python/Flutter.
-extra_args = [
-    "--no-shrink",
-    "--no-obfuscate"
-]
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install flet
+
+      - name: Build APK
+        run: |
+          # Adicione o comando para construir seu APK aqui
+          # Por exemplo, se você usa algum empacotador específico
+          # ./build-apk.sh  (substitua pelo seu comando real)
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v2
+        with:
+          name: my-app-apk
+          path: path/to/your/apk/file.apk
