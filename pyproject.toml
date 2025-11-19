@@ -24,9 +24,9 @@ jobs:
 
       - name: Build APK
         run: |
-          # Adicione o comando para construir seu APK aqui
-          # Por exemplo, se você usa algum empacotador específico
-          # ./build-apk.sh  (substitua pelo seu comando real)
+          # Aqui você deve adicionar o comando para construir seu APK
+          # Por exemplo, se você usar um empacotador como o `buildozer`:
+          # buildozer -v android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v2
