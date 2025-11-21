@@ -1,52 +1,88 @@
-name: Build Flet Android APK
+name: Build Flet Android APK - CI/CD
 
-# 1. Quando o workflow deve ser executado
+# Define os eventos que disparam o workflow
 on:
-  # Executa sempre que há um push (envio de código) para o branch 'main'
+  # Dispara automaticamente em qualquer push para o branch principal
   push:
-    branches: [ "main" ]
-  # Permite executar manualmente a partir da aba 'Actions' no GitHub
-  workflow_dispatch:
-
-# 2. Definição do Job (Tarefa)
-jobs:
-  build_apk:
-    # O executor (máquina virtual) onde o código será executado.
-    # Usamos o Ubuntu pois o build do Flet/Flutter é compatível com Linux.
-    runs-on: ubuntu-latest
-    
-    # Passos a serem executados
-    steps:
-      # Passo 1: Checkout (Baixar o código do repositório)
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    branches:
+      - main
       
-      # Passo 2: Configurar o Java (necessário para o build Android)
-      - name: Setup Java
-        uses: actions/setup-java@v4
+  # Permite que o workflow seja disparado manualmente pela aba 'Actions'
+  workflow_dispatch: 
+  
+jobs:
+  build_android:
+    runs-on: ubuntu-latest
+
+    # Exporta o Run ID (usado para criar o link de download)
+    outputs:
+      run_id: ${{ github.run_id }}
+
+    steps:
+      - name: ⬇️ Checkout do Código
+        uses: actions/checkout@v4
+
+      # Configura o ambiente Flutter, que é a base do Flet Android
+      - name: 🚀 Setup Flutter Environment
+        uses: subosito/flutter-action@v2
         with:
-          distribution: 'zulu'
-          java-version: '17' # A versão recomendada para o Flutter/Flet
+          # Use a versão que você configurou no seu projeto
+          flutter-version: '3.22.2'
+          channel: 'stable'
+          cache: true
           
-      # Passo 3: Configurar o Python
-      - name: Set up Python
+      # Configura o Python
+      - name: 🐍 Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11' # Use sua versão de Python
+          python-version: '3.11' # Ajuste para sua versão
           
-      # Passo 4: Instalar o Flet
-      - name: Install Flet
-        run: pip install flet
+      # Instala o Flet e dependências do projeto
+      - name: ⚙️ Install Flet and Dependencies
+        run: |
+          pip install --pre "flet" uv
+          uv sync # Usa uv para sincronizar dependências mais rápido
 
-      # Passo 5: Executar o Build do Flet para APK
-      # O Flet CLI fará o download e setup do Flutter e das dependências
-      - name: Build Flet APK
-        run: flet build apk
-        
-      # Passo 6: Salvar e publicar o artefato (o APK)
-      - name: Upload APK artifact
+      - name: 📦 Run Flet Build APK
+        # O argumento --verbose é crucial para obter logs detalhados em caso de falha
+        run: flet build apk --verbose
+
+      # PASSO DE DEBUGGING CRUCIAL! Lista o que foi gerado.
+      - name: 🔎 Debug: Listar conteúdo do diretório Build
+        run: |
+          echo "Conteúdo de build/app/outputs/flutter-apk:"
+          ls -R build/app/outputs/flutter-apk/ || echo "Diretório flutter-apk não encontrado ou vazio."
+          echo "Conteúdo de build/apk (Caminho alternativo):"
+          ls -R build/apk/ || echo "Diretório apk não encontrado ou vazio."
+          
+      # 1. UPLOAD DO ARTIFACT
+      - name: 📤 Upload APK Artifact
+        id: upload_artifact
         uses: actions/upload-artifact@v4
         with:
-          name: meu-app-flet-apk
-          # O caminho onde o Flet salva os APKs. O nome do arquivo final pode variar.
-          path: build/app/outputs/apk/release/*.apk
+          name: newapp-android-apk
+          # Tenta ambos os caminhos mais comuns para o APK
+          path: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/apk/app-release.apk
+          # Garante que o workflow falhe se o APK não for encontrado
+          if-no-files-found: error
+          
+      # 2. ENVIO DO LINK ESTÁVEL PARA O TELEGRAM (requer secrets configurados)
+      - name: 🚀 Enviar Link de Download para Telegram
+        # Este passo só executa se o passo anterior (Upload) foi bem-sucedido
+        if: success()
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          format: markdown 
+          message: |
+            ✅ *Novo Build Flet Android Disponível!*
+            
+            Branch: `${{ github.ref_name }}`
+            
+            📥 [CLIQUE AQUI PARA VER E BAIXAR](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            
+            (Requer login no GitHub para baixar.)
+
