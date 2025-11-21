@@ -1,35 +1,52 @@
-name: Build APK
+name: Build Flet Android APK
 
+# 1. Quando o workflow deve ser executado
 on:
+  # Executa sempre que há um push (envio de código) para o branch 'main'
   push:
-    branches:
-      - main
+    branches: [ "main" ]
+  # Permite executar manualmente a partir da aba 'Actions' no GitHub
+  workflow_dispatch:
 
+# 2. Definição do Job (Tarefa)
 jobs:
-  build:
+  build_apk:
+    # O executor (máquina virtual) onde o código será executado.
+    # Usamos o Ubuntu pois o build do Flet/Flutter é compatível com Linux.
     runs-on: ubuntu-latest
-
+    
+    # Passos a serem executados
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
+      # Passo 1: Checkout (Baixar o código do repositório)
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      # Passo 2: Configurar o Java (necessário para o build Android)
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17' # A versão recomendada para o Flutter/Flet
+          
+      # Passo 3: Configurar o Python
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.11' # Use sua versão de Python
+          
+      # Passo 4: Instalar o Flet
+      - name: Install Flet
+        run: pip install flet
 
-      - name: Install dependencies
-        run: |
-          pip install flet
-
-      - name: Build APK
-        run: |
-          # Aqui você deve adicionar o comando para construir seu APK
-          # Por exemplo, se você usar um empacotador como o `buildozer`:
-          # buildozer -v android debug
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v2
+      # Passo 5: Executar o Build do Flet para APK
+      # O Flet CLI fará o download e setup do Flutter e das dependências
+      - name: Build Flet APK
+        run: flet build apk
+        
+      # Passo 6: Salvar e publicar o artefato (o APK)
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: my-app-apk
-          path: path/to/your/apk/file.apk
+          name: meu-app-flet-apk
+          # O caminho onde o Flet salva os APKs. O nome do arquivo final pode variar.
+          path: build/app/outputs/apk/release/*.apk
