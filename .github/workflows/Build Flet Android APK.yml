@@ -1,89 +1,61 @@
-name: Build Flet Android APK - CI/CD
+steps:
+  - name: '1. Checkout do Código Fonte'
+    uses: actions/checkout@v4
+    # Garante que o histórico completo esteja disponível para o Flutter/Flet
 
-# Define os eventos que disparam o workflow
-on:
-  # Dispara automaticamente em qualquer push para o branch principal
-  push:
-    branches:
-      - main
+  - name: '2. Configurar Python'
+    uses: actions/setup-python@v5
+    with:
+      python-version: '3.11'
+      cache: 'pip'
+
+  - name: '3. Instalar Flet CLI'
+    run: |
+      pip install flet
+
+  - name: '4. Configurar Flutter'
+    uses: subosito/flutter-action@v2
+    with:
+      flutter-version: '3.19.6' # Use a versão estável mais recente
+      channel: 'stable'
+      cache: true
+
+  - name: '5. Configurar Java para Android Build'
+    uses: actions/setup-java@v4
+    with:
+      distribution: 'temurin'
+      # A versão 17 é tipicamente a mínima exigida pelas versões mais recentes do Flutter
+      java-version: '17'
+      cache: 'gradle'
+
+  - name: '6. Obter Dependências do Projeto (flutter pub get)'
+    # Este comando é crucial para que o Flet resolva as dependências do Flutter
+    run: flutter pub get
+
+  - name: '7. Fazer o Build do APK Android em Release'
+    # Este é o comando Flet para gerar o APK final
+    # A linha 51 estaria provavelmente nesta área ou na configuração do Java acima.
+    run: flet build apk --release # Linha 51 está por volta desta área no workflow.
+
+  - name: '8. Preparar Artefato: Renomear APK'
+    id: prepare_artifact
+    run: |
+      # Encontra o arquivo APK gerado (o caminho pode variar ligeiramente)
+      APK_PATH=$(find ./build -name "*.apk" | head -n 1)
       
-  # Permite que o workflow seja disparado manualmente pela aba 'Actions'
-  workflow_dispatch: 
-  
-jobs:
-  build_android:
-    runs-on: ubuntu-latest
+      # Define o nome final do arquivo com o nome do commit/SHA
+      COMMIT_SHA_SHORT=$(echo $GITHUB_SHA | cut -c1-7)
+      NEW_APK_NAME="app-release-${{ github.event.ref_name }}-${COMMIT_SHA_SHORT}.apk"
+      
+      # Copia e renomeia o APK para o diretório raiz para fácil upload
+      cp $APK_PATH $NEW_APK_NAME
+      
+      # Define a variável de ambiente para o próximo passo
+      echo "APK_FILE_NAME=$NEW_APK_NAME" >> $GITHUB_ENV
 
-    # Exporta o Run ID (usado para criar o link de download)
-    outputs:
-      run_id: ${{ github.run_id }}
-
-    steps:
-      - name: ⬇️ Checkout do Código
-        uses: actions/checkout@v4
-
-      # Configura o ambiente Flutter, que é a base do Flet Android
-      - name: 🚀 Setup Flutter Environment
-        uses: subosito/flutter-action@v2
-        with:
-          # Use a versão que você configurou no seu projeto
-          flutter-version: '3.22.2'
-          channel: 'stable'
-          cache: true
-          
-      # Configura o Python
-      - name: 🐍 Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11' # Ajuste para sua versão
-          
-      # Instala o Flet e dependências do projeto
-      - name: ⚙️ Install Flet and Dependencies
-        run: |
-          pip install --pre "flet" uv
-          uv sync # Usa uv para sincronizar dependências mais rápido
-
-      - name: 📦 Run Flet Build APK
-        # O argumento --verbose é crucial para obter logs detalhados em caso de falha
-        run: flet build apk --verbose
-
-      # PASSO DE DEBUGGING CRUCIAL! Lista o que foi gerado.
-      - name: 🔎 Debug: Listar conteúdo do diretório Build
-        run: |
-          echo "Conteúdo de build/app/outputs/flutter-apk:"
-          ls -R build/app/outputs/flutter-apk/ || echo "Diretório flutter-apk não encontrado ou vazio."
-          echo "Conteúdo de build/apk (Caminho alternativo):"
-          ls -R build/apk/ || echo "Diretório apk não encontrado ou vazio."
-          
-      # 1. UPLOAD DO ARTIFACT
-      - name: 📤 Upload APK Artifact
-        id: upload_artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: newapp-android-apk
-          # Tenta ambos os caminhos mais comuns para o APK
-          path: |
-            build/app/outputs/flutter-apk/app-release.apk
-            build/apk/app-release.apk
-          # Garante que o workflow falhe se o APK não for encontrado
-          if-no-files-found: error
-          
-      # 2. ENVIO DO LINK ESTÁVEL PARA O TELEGRAM (requer secrets configurados)
-      - name: 🚀 Enviar Link de Download para Telegram
-        # Este passo só executa se o passo anterior (Upload) foi bem-sucedido
-        if: success()
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          format: markdown 
-          message: |
-            ✅ *Novo Build Flet Android Disponível!*
-            
-            Branch: `${{ github.ref_name }}`
-            
-            📥 [CLIQUE AQUI PARA VER E BAIXAR](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-            
-            (Requer login no GitHub para baixar.)
-
- 
+  - name: '9. Fazer Upload do APK como Artefato'
+    uses: actions/upload-artifact@v4
+    with:
+      name: flet-android-apk-${{ github.event.ref_name }}
+      path: ${{ env.APK_FILE_NAME }}
+      retention-days: 7
